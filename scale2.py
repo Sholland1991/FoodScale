@@ -39,10 +39,7 @@ CS   = 18
 MOSI = 23
 MISO = 24
 SCLK = 25
-pn532 = PN532.PN532(cs=CS, sclk=SCLK, mosi=MOSI, miso=MISO)
-pn532.begin()
-ic, ver, rev, support = pn532.get_firmware_version()
-pn532.SAM_configuration()
+
 
 #Sheet Upload
 import json
@@ -69,22 +66,25 @@ worksheet = None
 #GOOGLE DRIVE FOLDER ID
 fid ='11n-Owqd8uCoQB14_yOt0jzVShN1881YZ'
 
-#Button:
-button_pin = 21
-GPIO.setup(button_pin, GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
 
 #MAIN LOOP
 print('Waiting')
-
+old_uid = 0
 while True:
+        pn532 = PN532.PN532(cs=CS, sclk=SCLK, mosi=MOSI, miso=MISO)
+        pn532.begin()
+        ic, ver, rev, support = pn532.get_firmware_version()
+        pn532.SAM_configuration()
         uid = pn532.read_passive_target(timeout_sec=1000)
+        if old_uid == uid:
+                continue
         if uid is None:
             continue
 
         tag = str(format(binascii.hexlify(uid)))
         print('On Scale')
         print('Found card with UID: 0x{0}'.format(binascii.hexlify(uid)))
+        time.sleep(5)
 
         mass = max(0,int(hx.get_weight(5))) #read mass from scale. cannot be less than 0
         plate_id = datetime.datetime.now().strftime("%Y_%m_%d_%H_%M_%S") #create timestamp
@@ -110,7 +110,7 @@ while True:
             # Null out the worksheet so a login is performed at the top of the loop.
             print('Append error, logging in again')
             worksheet = None
-            time.sleep(5)
+            time.sleep(2)
             continue
 
         print ([plate_id,tag,mass])
@@ -118,6 +118,8 @@ while True:
         hx.power_down()
         hx.power_up()
         sleep(.5)
+
+        old_uid = uid
 
         print ('Waiting')
 
